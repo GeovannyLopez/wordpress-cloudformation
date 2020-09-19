@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+    Main stack
+    Reference:
+    https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-nested-stacks-values/
+Parameters:
+  OwnerName:
+    Type: String
+    Description: An arbitrary tag name for the owner of these resources
+
+  ProjectName:
+    Type: String
+    Description: The Project name to which these resources belong to
+
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name to append to resources names and tags
+
+  DBName:
+    Type: String
+    Default: wordpress
+    Description: Database name
+
+  DbUser:
+    Type: String
+    Default: admin
+    Description: Name of Mysql Admin
+  
+  DbPass:
+    Type: String
+    Default: mysqlpassword2020
+    Description: Password of Mysql Admin
+
+  KeyName:
+    Type: String
+    Description: Key Name to connect to Ec2 instance
+
+  HostedZoneId:
+    Type: String
+    Description: Existing hosted zone id
+
+  HostedZoneName:
+    Type: String
+    Description: Existing hosted Zone name
+
+  RecordName:
+    Type: String
+    Description: This value will be used to create a subdomain in your hosted zone
+
+  S3Url:
+    Type: String
+    Description: Bucket url used to upload the nested templates
+
+Resources: 
+  VpcStack: 
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+      TemplateURL: !Sub ${S3Url}/vpc.yml
+      Parameters: 
+        OwnerName: !Ref OwnerName
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+  
+  DbStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: !Sub ${S3Url}/rds.yml
+      Parameters:
+        OwnerName: !Ref OwnerName
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        DBName: !Ref DBName
+        DbUser: !Ref DbUser
+        DbPass: !Ref DbPass
+        VpcId: 
+          Fn::GetAtt: 
+          - VpcStack
+          - Outputs.VpcId
+        Subnet1: 
+          Fn::GetAtt: 
+          - VpcStack
+          - Outputs.SubnetPrivate1
+        Subnet2: 
+          Fn::GetAtt: 
+          - VpcStack
+          - Outputs.SubnetPrivate2
+  
+  Ec2Stack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: !Sub ${S3Url}/ec2.yml
+      Parameters:
+        OwnerName: !Ref OwnerName
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        KeyName: !Ref KeyName
+        DBAddress:  
+          Fn::GetAtt: 
+          - DbStack
+          - Outputs.Endpoint
+        DBName: !Ref DBName
+        DbUser: !Ref DbUser
+        DbPass: !Ref DbPass
+        VpcId: 
+          Fn::GetAtt: 
+          - VpcStack
+          - Outputs.VpcId
+        SubnetId: 
+          Fn::GetAtt: 
+          - VpcStack
+          - Outputs.SubnetPublic1
+        SecurityGroupServer:
+          Fn::GetAtt: 
+            - DbStack
+            - Outputs.SecurityGroupFrontend
+
+  DnsStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: !Sub ${S3Url}/dns.yml
+      Parameters:
+        OwnerName: !Ref OwnerName
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        HostedZoneId: !Ref HostedZoneId
+        HostedZoneName: !Ref HostedZoneName
+        RecordName: !Ref RecordName
+        Ec2Ip: 
+          Fn::GetAtt: 
+          - Ec2Stack
+          - Outputs.Ec2PublicId

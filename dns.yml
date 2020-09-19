@@ -1,0 +1,46 @@
+Description: >-
+    DNS record stack
+    Reference:
+    https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-route53-recordset.html#cfn-route53-recordset-name
+    https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-route53.html
+Parameters:
+  OwnerName:
+    Type: String
+    Description: An arbitrary tag name for the owner of these resources
+
+  ProjectName:
+    Type: String
+    Description: The Project name to which these resources belong to
+
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name to append to resources names and tags
+
+  HostedZoneId:
+    Type: String
+    Description: Hosted zone id
+
+  HostedZoneName:
+    Type: String
+    Description: Hosted Zone name
+
+  RecordName:
+    Type: String
+    Description: Record name
+
+  Ec2Ip:
+    Type: String
+    Description: Public Ip of Ec2 Instance
+
+Resources: 
+  DNSRecordSet:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Comment: DNS name for my instance.
+      Name: !Join ['', [!Ref 'RecordName', ., !Ref 'HostedZoneName', .]]
+      Type: A
+      TTL: '300'
+      ResourceRecords:
+      - !Ref Ec2Ip

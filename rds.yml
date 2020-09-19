@@ -1,0 +1,135 @@
+
+Description: >-
+  RDS Definition
+  Reference:
+  https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html
+
+Parameters:
+  OwnerName:
+    Type: String
+    Description: An arbitrary tag name for the owner of these resources
+
+  ProjectName:
+    Type: String
+    Description: The Project name to which these resources belong to
+
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name to append to resources names and tags
+
+  VpcId:
+    Type: String
+    Default: vpc-2fa42d55
+    Description: VPC Identifier
+
+  Subnet1:
+    Type: String
+    Description: Subnet name
+  
+  Subnet2:
+    Type: String
+    Description: Subnet name
+
+  DBName:
+    Type: String
+    Default: mydatabase
+    Description: Name of database
+
+  DbUser:
+    Type: String
+    Default: mysqladmin
+    Description: Name of Mysql Admin
+  
+  DbPass:
+    Type: String
+    Default: mysqlpassword2020
+    Description: Password of Mysql Admin
+
+  DBStorage:
+    Default: '5'
+    Description: The size of the database (Gb)
+    Type: Number
+    MinValue: '5'
+    MaxValue: '1024'
+    ConstraintDescription: must be between 5 and 1024Gb.
+
+  DBInstanceClass:
+    Default: db.t2.micro
+    Description: Database instance class
+    Type: String
+    AllowedValues:
+      - db.t1.micro
+      - db.t2.micro
+      - db.t2.small
+      - db.t2.medium
+      - db.m3.medium
+      - db.m3.large
+      - db.m3.xlarge
+      - db.m3.2xlarge
+    ConstraintDescription: must select a valid database instance type.
+
+Resources:
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub mysql-id-${Environment}
+      DBName: !Sub ${DBName}
+      Engine: MySQL
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      DBInstanceClass: !Ref DBInstanceClass
+      DBSecurityGroups:
+      - Ref: DBSecurityGroup
+      PubliclyAccessible: false
+      AllocatedStorage: !Ref DBStorage
+      MasterUsername: !Ref DbUser
+      MasterUserPassword: !Ref DbPass
+      Port: 3306
+
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: My db subnet group
+      DBSubnetGroupName: !Sub mysubnetgroup-${Environment}
+      SubnetIds: 
+        - !Ref Subnet1
+        - !Ref Subnet2
+  
+  DBSecurityGroup:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      EC2VpcId: !Ref VpcId
+      DBSecurityGroupIngress:
+        EC2SecurityGroupId: !Ref SecurityGroupFrontend
+      GroupDescription: Frontend Access
+
+  SecurityGroupFrontend:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ec2-sg-${Environment}
+      GroupDescription: Allow connections to specified CIDR ranges
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcId
+
+Outputs:
+
+  DbId:
+    Value: !Ref Database
+
+  SecurityGroupDB:
+    Value: !Ref DBSecurityGroup
+
+  Endpoint:
+    Value: !GetAtt Database.Endpoint.Address
+
+  SecurityGroupFrontend:
+    Value: !Ref SecurityGroupFrontend
+    

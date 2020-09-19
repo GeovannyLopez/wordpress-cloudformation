@@ -1,0 +1,206 @@
+
+Description: >-
+  VPC and subnets definition
+
+Parameters:
+  OwnerName:
+    Type: String
+    Default: Geovanny Lopez
+    Description: An arbitrary tag name for the owner of these resources
+
+  ProjectName:
+    Type: String
+    Description: The Project name to which these resources belong to
+
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name to append to resources names and tags
+
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR used for the VPC
+
+  PubSub1Cidr:
+    Type: String
+    Default: 10.0.1.0/24
+    Description: CIDR used for the public subnet 1
+
+  PubSub2Cidr:
+    Type: String
+    Default: 10.0.2.0/24
+    Description: CIDR used for the public subnet 2
+  
+  PriSub1Cidr:
+    Type: String
+    Default: 10.0.3.0/24
+    Description: CIDR used for the private subnet 1
+
+  PriSub2Cidr:
+    Type: String
+    Default: 10.0.4.0/24
+    Description: CIDR used for the private subnet 2
+
+Resources:
+  #Creating VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: !Sub vpc-${Environment}
+  #Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub igw-${Environment}
+
+  Attachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  #Public Subnets
+  SubnetPublic1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+      - 0
+      - !GetAZs 
+        Ref: 'AWS::Region'
+      CidrBlock: !Ref PubSub1Cidr
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub subnet-pub-1-${Environment}
+
+  SubnetPublic2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+      - 1
+      - !GetAZs 
+        Ref: 'AWS::Region'
+      CidrBlock: !Ref PubSub2Cidr
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub subnet-pub-2-${Environment}
+  #Public Route Table
+  RouteTablePublic:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub rt-pub-${Environment}
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  RTPubS1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublic1
+
+  RTPubS2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetPublic2
+  #Nat Gateway
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties: 
+      AllocationId: !GetAtt ElasticIP.AllocationId
+      SubnetId: !Ref SubnetPublic1
+      Tags: 
+        - Key: Name
+          Value: !Sub ng-${Environment}
+  
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub eip-${Environment}
+  #Private Subnets
+  SubnetPrivate1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+      - 2
+      - !GetAZs 
+        Ref: 'AWS::Region'
+      CidrBlock: !Ref PriSub1Cidr
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub subnet-pri-1-${Environment}
+
+  SubnetPrivate2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select 
+      - 3
+      - !GetAZs 
+        Ref: 'AWS::Region'
+      CidrBlock: !Ref PriSub2Cidr
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub subnet-pri-2-${Environment}
+  #Private Route Table
+  RouteTablePrivate:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub rt-pri-${Environment}
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  RTPriS1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref SubnetPrivate1
+
+  RTPriS2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref SubnetPrivate2
+
+
+Outputs:
+
+  VpcId:
+    Value: !Ref VPC
+  
+  SubnetPublic1:
+    Value: !Ref SubnetPublic1
+
+  SubnetPublic2:
+    Value: !Ref SubnetPublic2
+
+  SubnetPrivate1:
+    Value: !Ref SubnetPrivate1
+
+  SubnetPrivate2:
+    Value: !Ref SubnetPrivate2
