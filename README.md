@@ -1,6 +1,6 @@
 # WordPress Template - Cloudformation
 
-Template to create a WordPress site from scratch, without any manual configuration. The infrastructure is defined using CloudFormation, and containers the following parts:
+Template to create a WordPress site from scratch, without any manual configuration. The infrastructure is defined using CloudFormation, and contains the following parts:
 - Main Template
 - VPC
 - RDS
